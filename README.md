@@ -16,7 +16,7 @@ Your backend (`server.js`) connects to the MongoDB Atlas live database and serve
 1. Open your terminal or VS Code terminal.
 2. Navigate to your project folder:
    ```bash
-   cd "C:\Users\lokesh verma\OneDrive\Desktop\PROJECT 1"
+   cd " Address of the project folder directory eg--C:\Users\lokesh verma\OneDrive\Desktop\PROJECT 1"
    ```
 3. Start the Node.js server:
    ```bash
