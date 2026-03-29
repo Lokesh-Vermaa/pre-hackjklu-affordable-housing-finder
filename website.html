@@ -160,8 +160,7 @@
     input:focus,
     select:focus {
       outline: none;
-      ring: 2px;
-      ring-color: #3b82f6;
+      box-shadow: 0 0 0 2px #3b82f6;
     }
 
     .scrollbar-thin::-webkit-scrollbar {
@@ -274,8 +273,8 @@
           }
           if (filters.bhk && filters.bhk !== 'all') queryParams.append('bhk', filters.bhk);
           if (filters.budgetMin) queryParams.append('budgetMin', filters.budgetMin);
-          if (filters.budgetMax) queryParams.append('budgetMax', filters.budgetMax);
-          if (filters.loanEligibility) queryParams.append('eligibleForLoan', true);
+          // Only send budgetMax if user explicitly changed it from default
+          if (filters.budgetMax && filters.budgetMax < 100000000) queryParams.append('budgetMax', filters.budgetMax);
 
           const response = await fetch(
             `${state.apiEndpoint}/properties?${queryParams.toString()}`,
@@ -923,6 +922,13 @@
       render();
     };
 
+    // Global property registry for safe onclick access by index
+    window._propertyRegistry = [];
+    const viewPropertyDetails = (index) => {
+      const prop = window._propertyRegistry[index];
+      if (prop) navigate('property-details', prop);
+    };
+
     const toggleDarkMode = () => {
       state.darkMode = !state.darkMode;
       document.documentElement.classList.toggle('dark', state.darkMode);
@@ -934,28 +940,18 @@
       state.isLoading = true;
       render();
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the real backend API
+      const result = await apiService.authenticate(email, password, true);
 
-      // Check saved users from Data SDK
-      const savedUser = state.savedProperties.find(
-        item => item.type === 'user' && item.email === email
-      );
-
-      if (savedUser || (email && password.length >= 6)) {
+      if (result.success) {
         state.isAuthenticated = true;
-        state.user = {
-          name: savedUser?.name || email.split('@')[0],
-          email
-        };
-        localStorage.setItem('jwt_token', 'sample_jwt_token_' + Date.now());
-        localStorage.setItem('user', JSON.stringify(state.user));
+        state.user = result.data;
         state.isLoading = false;
         showToast('Login successful! Welcome back.');
         navigate('dashboard');
       } else {
         state.isLoading = false;
-        showToast('Invalid credentials. Please try again.', 'error');
+        showToast(result.error || 'Invalid credentials. Please try again.', 'error');
         render();
       }
     };
@@ -964,32 +960,30 @@
       state.isLoading = true;
       render();
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Save user via Data SDK
-      if (window.dataSdk) {
-        const result = await window.dataSdk.create({
-          id: 'user_' + Date.now(),
-          type: 'user',
-          name: name,
-          email: email,
-          password: password,
-          createdAt: new Date().toISOString()
+      // Call the real backend API to register
+      const result = await apiService.authenticate(email, password, false);
+      // apiService.authenticate sends email.split('@')[0] as name when isLogin=false,
+      // but the register endpoint needs the actual full name from the form.
+      // So we call the endpoint directly here:
+      try {
+        const response = await fetch(`${state.apiEndpoint}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
         });
-
-        if (result.isOk) {
-          state.isLoading = false;
+        const data = await response.json();
+        state.isLoading = false;
+        if (response.ok) {
           showToast('Registration successful! Please login.');
           navigate('login');
         } else {
-          state.isLoading = false;
-          showToast('Registration failed. Please try again.', 'error');
+          showToast(data.message || 'Registration failed. Please try again.', 'error');
           render();
         }
-      } else {
+      } catch (err) {
         state.isLoading = false;
-        showToast('Registration successful! Please login.');
-        navigate('login');
+        showToast('Could not connect to server. Is it running?', 'error');
+        render();
       }
     };
 
@@ -1266,7 +1260,7 @@
             ` : ''}
           </div>
           <button 
-            onclick="navigate('property-details', sampleProperties.find(p => p.id === '${property.id}'))"
+            onclick="viewPropertyDetails(${(window._propertyRegistry.push(property), window._propertyRegistry.length - 1)})"
             class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors btn-hover"
           >
             View Details
@@ -2084,6 +2078,9 @@
 
     // --- Main Render Function ---
     const render = () => {
+      // Reset property registry on each render so indexes don't pile up
+      window._propertyRegistry = [];
+
       let pageContent = '';
 
       switch (state.currentPage) {
@@ -2195,9 +2192,11 @@
         state.user = JSON.parse(savedUser);
       }
 
-      // Initialize properties
+      // Initialize properties (show sample data until a search is made)
       state.filteredProperties = [...sampleProperties];
-      apiService.setEndpoint("http://localhost:8080/api");
+      // Set API endpoint silently without firing the toast notification
+      state.apiEndpoint = "http://localhost:8080/api";
+      localStorage.setItem('apiEndpoint', state.apiEndpoint);
 
 
       // Initialize Element SDK
