@@ -16,7 +16,7 @@ Your backend (`server.js`) connects to the MongoDB Atlas live database and serve
 1. Open your terminal or VS Code terminal.
 2. Navigate to your project folder:
    ```bash
-   cd "C:\Users\lokesh verma\OneDrive\Desktop\PROJECT 1"
+   cd " Address of the project folder directory eg--C:\Users\lokesh verma\OneDrive\Desktop\PROJECT 1"
    ```
 3. Start the Node.js server:
    ```bash
@@ -34,7 +34,7 @@ Your backend (`server.js`) connects to the MongoDB Atlas live database and serve
 Your website's user interface is built entirely in an HTML file (`website.html`).
 
 1. Open your File Explorer.
-2. Go to `C:\Users\lokesh verma\OneDrive\Desktop\PROJECT 1`.
+2. Go to root folder of the project and open the file "website.html".
 3. Simply **double-click** the `website.html` file.
    - It will open automatically in your default internet browser (e.g. Chrome).
    - *Alternatively, you can drag and drop the file into an open browser tab.*
